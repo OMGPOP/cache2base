@@ -25,19 +25,19 @@ And create a model:
   
 And use that model:
 
-m = MyModel4.new(:last_name => "lname", :user_id => 5) # creates an in-memory instance
-m.first_name = 'fname' # all set_fields are given accessors
-m.save # saves to memcache/base
-
-m2 = MyModel4.create(:last_name => "lname2", :first_name => 'fname', :user_id => 6) # auto create (.new, .save shortcut)
-
-fnames = MyModel4.all(:first_name => "fname") # returns array of model instances that share the same first name
-                                              #=> [#<MyModel4:0x10133cd98 @last_name="lname", @new_instance=false, @first_name="fname", @user_id=5>, 
-                                              #=>  #<MyModel4:0x10133c4d8 @last_name="lname2", @new_instance=false, @first_name="fname", @user_id=6>]
-                                                  
-m.delete # delete the first one
-
-MyModel4.all(:first_name => "fname") #=> [#<MyModel4:0x101264560 @last_name="lname2", @new_instance=false, @first_name="fname", @user_id=6>]
+  m = MyModel4.new(:last_name => "lname", :user_id => 5) # creates an in-memory instance
+  m.first_name = 'fname' # all set_fields are given accessors
+  m.save # saves to memcache/base
+  
+  m2 = MyModel4.create(:last_name => "lname2", :first_name => 'fname', :user_id => 6) # auto create (.new, .save shortcut)
+  
+  fnames = MyModel4.all(:first_name => "fname") # returns array of model instances that share the same first name
+                                                #=> [#<MyModel4:0x10133cd98 @last_name="lname", @new_instance=false, @first_name="fname", @user_id=5>, 
+                                                #=>  #<MyModel4:0x10133c4d8 @last_name="lname2", @new_instance=false, @first_name="fname", @user_id=6>]
+                                                    
+  m.delete # delete the first one
+  
+  MyModel4.all(:first_name => "fname") #=> [#<MyModel4:0x101264560 @last_name="lname2", @new_instance=false, @first_name="fname", @user_id=6>]
 
 Thanks
 ------------
