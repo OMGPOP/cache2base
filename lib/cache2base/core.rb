@@ -4,6 +4,7 @@ module Cache2base
     klass.class_eval "@ttl ||= 0"
     klass.class_eval "@collections ||= []"
     klass.class_eval "@server ||= Cache2base.server"
+    klass.class_eval "attr_accessor :values"
     klass.extend(ClassMethods)
   end
   
@@ -26,9 +27,10 @@ module Cache2base
   
   def initialize(hsh = {}, params = {})
     @new_instance = params[:new_instance].nil? ? true : params[:new_instance]
-    hsh.each_pair do |k,v|
-      self.send(:"#{k}=", v)
-    end
+    @values ||= hsh
+    #hsh.each_pair do |k,v|
+    #  self.send(:"#{k}=", v)
+    #end
   end
   
   def new?
@@ -54,15 +56,20 @@ module Cache2base
   end
   
   def field_hash
-    o = {}
-    self.class.fields.each do |field|
-      o[field] = self.send(field) if !self.send(field).nil?
-    end
-    o
+    @values
+    #o = {}
+    #self.class.fields.each do |field|
+    #  o[field] = self.send(field) if !self.send(field).nil?
+    #end
+    #o
   end
   
   def collection_key(field)
     self.class.collection_key(Hash[Array(field).collect {|f| [f, self.send(f)]}])
+  end
+  
+  def collection_max(field)
+    self.class.collection_max(field)
   end
   
   def add_to_collections
@@ -75,6 +82,7 @@ module Cache2base
     Array(field).each { |f| return 'could_not_add' if self.send(f).nil? } # still evaluates to true, so add_to_collections does not fail
     success = server.cas(collection_key(field), self.class.ttl) do |value|
       value << self.key unless value.include?(self.key)
+      value = value.drop(value.length - collection_max(field)) if collection_max(field) && value.length > collection_max(field)
       value
     end
     
@@ -140,6 +148,13 @@ module Cache2base
       @server
     end
     
+    def field_accessor(*fields)
+      fields.each do |field|
+        class_eval "def #{field}; @values[:\"#{field}\"]; end"
+        class_eval "def #{field}=(v); @values[:\"#{field}\"] = v; end"
+      end
+    end
+    
     def set_primary_key(mk, params = {})
       @primary_key = Array(mk)
       #o = '#{self.class}'
@@ -173,7 +188,7 @@ module Cache2base
     def set_fields(*fields)
       @fields = @fields ? (@fields + (fields)) : (fields)
       fields.each do |field|
-        class_eval "attr_accessor :#{field}"
+        class_eval "field_accessor :#{field}"
       end
     end
     
@@ -185,7 +200,7 @@ module Cache2base
         @field_meta[field] ||= {}
         @field_meta[field][:hash] = true
       end
-      class_eval "attr_accessor :#{field}"
+      class_eval "field_accessor :#{field}"
     end
     
     def uses_hash?(field)
@@ -196,8 +211,10 @@ module Cache2base
       fields = Array(fields).sort { |a,b| a.to_s <=> b.to_s }
       @collections ||= []
       @collections << fields
-      @hashed_collections ||= {}
-      @hashed_collections[fields.join(",").to_s] = true if params[:hash_key]
+      @collection_settings ||= {}
+      @collection_settings[fields.join(",").to_s] = {}
+      @collection_settings[fields.join(",").to_s][:hash_key] = true if params[:hash_key]
+      @collection_settings[fields.join(",").to_s][:max] = params[:max].to_i if params[:max]
     end
     
     def collections
@@ -209,12 +226,16 @@ module Cache2base
       "#{@basename}_c_#{hash_collection?(keys) ? hash_key(keys.collect {|field| vhsh[field].to_s.gsub('_','-') }.join("_")) : keys.collect {|field| vhsh[field].to_s.gsub('_','-') }.join("_")}"
     end
     
+    def collection_max(field)
+      @collection_settings[Array(field).join(',').to_s][:max]
+    end
+    
     def fields
       @fields
     end
     
     def hash_collection?(field)
-      @hashed_collections[Array(field).join(',').to_s]
+      @collection_settings[Array(field).join(',').to_s][:hash_key]
     end
     
     def find(fields, params = {})
@@ -232,7 +253,7 @@ module Cache2base
     def find_by_keys(keys)
       hsh = server.get_multi(keys)
       keys.collect do |key| # to get it back in order since get_multi results in a hash
-        self.from_hash(Marshal.load(hsh[key]))
+        hsh[key] ? self.from_hash(Marshal.load(hsh[key])) : nil
       end.compact
     end
     
@@ -245,9 +266,39 @@ module Cache2base
       o.save
     end
     
-    def all(fields, params = {})
-      arr = server.get(collection_key(fields))
-      find_by_keys(Array(arr)).compact
+    def clean_nil_keys(fields, keys)
+      server.cas(collection_key(fields), @ttl) do |current_keys|
+        keys.each do |key|
+          current_keys.delete(key)
+        end
+        
+        current_keys
+      end
     end
+    
+    def all(fields, params = {})
+      keys = server.get(collection_key(fields))
+      hsh = server.get_multi(keys)
+      nils = []
+      
+      o = (keys||[]).collect do |key| # to get it back in order since get_multi results in a hash
+        if hsh[key] 
+          self.from_hash(Marshal.load(hsh[key]))
+        else
+          nils << key
+          nil
+        end
+      end.compact
+      
+      # I do not like doing "garbage collection" on read, but cant find any other place to put it.
+      clean_nil_keys(fields, nils) if @ttl > 0 && !nils.empty?
+      
+      o
+    end
+    
+    #def all(fields, params = {})
+    #  arr = server.get(collection_key(fields))
+    #  find_by_keys(Array(arr)).compact
+    #end
   end
 end

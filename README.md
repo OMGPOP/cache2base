@@ -16,7 +16,7 @@ And create a model:
 	class MyModel4
 	  include Cache2base
 	  set_basename 'mm4'
-	  set_ttl 300 # 3 seconds (so they expire after testing)
+	  set_ttl 300 # 300 seconds
 	  set_fields :user_id, :first_name, :last_name
 	
 	  set_primary_key :user_id

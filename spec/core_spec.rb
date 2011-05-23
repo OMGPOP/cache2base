@@ -219,7 +219,7 @@ describe "A Cache2base model with a 1 field collection, hashed" do
       set_fields :user_id, :first_name, :last_name
 
       set_primary_key :user_id
-      member_of_collection :first_name, :hash_key => true
+      member_of_collection :first_name, :hash_key => true, :max => 5
     end
     
     @model = MyModel3h
@@ -243,10 +243,33 @@ describe "A Cache2base model with a 1 field collection, hashed" do
     MyModel3h.create(:first_name => 'c1', :user_id => 2)
     MyModel3h.create(:first_name => 'c1', :user_id => 3)
     
-    results = MyModel3.all(:first_name => 'c1')
+    results = MyModel3h.all(:first_name => 'c1')
     results.length.should == 2
     results.collect {|m| m.user_id }.include?(2).should == true
     results.collect {|m| m.user_id }.include?(3).should == true
+  end
+  
+  it "should keep number of collections to the max set" do
+    MyModel3h.create(:first_name => 'c1', :user_id => 4)
+    MyModel3h.all(:first_name => 'c1').length.should == 3
+     
+    MyModel3h.create(:first_name => 'c1', :user_id => 5)
+    MyModel3h.all(:first_name => 'c1').length.should == 4
+      
+    MyModel3h.create(:first_name => 'c1', :user_id => 6)
+    MyModel3h.all(:first_name => 'c1').length.should == 5
+    
+    MyModel3h.all(:first_name => 'c1').collect {|m| m.user_id}.sort.should == [2,3,4,5,6]
+    
+    MyModel3h.create(:first_name => 'c1', :user_id => 7)
+    MyModel3h.all(:first_name => 'c1').length.should == 5
+    
+    MyModel3h.all(:first_name => 'c1').collect {|m| m.user_id}.sort.should == [3,4,5,6,7]
+    
+    MyModel3h.create(:first_name => 'c1', :user_id => 8)
+    MyModel3h.all(:first_name => 'c1').length.should == 5  
+    
+    MyModel3h.all(:first_name => 'c1').collect {|m| m.user_id}.sort.should == [4,5,6,7,8]
   end
   
   it_should_behave_like "all MyModel cache2base models"
@@ -429,6 +452,21 @@ describe "A Cache2base model with a 2 field collection and a 1 field collection,
     results = MyModel5h.all(:last_name => 'l2')
     results.length.should == 1
     results.collect {|m| m.user_id }.include?(4).should == true
+  end
+  
+  it "should garbage collect empty keys" do
+    results = MyModel5h.all(:first_name => 'c1', :last_name => 'l1')
+    results.length.should == 2
+    MyModel5h.server.get(MyModel5h.collection_key(:first_name => 'c1', :last_name => 'l1')).length.should == 2
+    
+    # Manually delete a key to simulate a deletion
+    
+    MyModel5h.server.delete(results.first.key)
+    
+    results = MyModel5h.all(:first_name => 'c1', :last_name => 'l1')
+    results.length.should == 1
+    
+    MyModel5h.server.get(MyModel5h.collection_key(:first_name => 'c1', :last_name => 'l1')).length.should == 1
   end
   
   it_should_behave_like "all MyModel cache2base models"
