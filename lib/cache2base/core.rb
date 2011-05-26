@@ -27,10 +27,11 @@ module Cache2base
   
   def initialize(hsh = {}, params = {})
     @new_instance = params[:new_instance].nil? ? true : params[:new_instance]
-    @values ||= hsh
-    #hsh.each_pair do |k,v|
-    #  self.send(:"#{k}=", v)
-    #end
+    #@values ||= hsh
+    @values ||= {}
+    hsh.each_pair do |k,v|
+      self.send(:"#{k}=", v) if self.respond_to?(k)
+    end
   end
   
   def new?
@@ -151,7 +152,7 @@ module Cache2base
     def field_accessor(*fields)
       fields.each do |field|
         class_eval "def #{field}; @values[:\"#{field}\"]; end"
-        class_eval "def #{field}=(v); @values[:\"#{field}\"] = v; end"
+        class_eval "def #{field}=(v); if(v.nil?); @values.delete(:\"#{field}\"); else; @values[:\"#{field}\"] = v; end; end"
       end
     end
     
