@@ -245,6 +245,12 @@ module Cache2base
       self.from_hash(Marshal.load(o))
     end
     
+    def delete(fields, params = {})
+      o = find(fields, params)
+      return nil unless o
+      o.delete
+    end
+    
     def find_by_key(key)
       o = server.get(key)
       return nil unless o

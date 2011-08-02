@@ -454,19 +454,29 @@ describe "A Cache2base model with a 2 field collection and a 1 field collection,
     results.collect {|m| m.user_id }.include?(4).should == true
   end
   
-  it "should garbage collect empty keys" do
+  it "should work with delete" do
     results = MyModel5h.all(:first_name => 'c1', :last_name => 'l1')
     results.length.should == 2
-    MyModel5h.server.get(MyModel5h.collection_key(:first_name => 'c1', :last_name => 'l1')).length.should == 2
-    
-    # Manually delete a key to simulate a deletion
-    
-    MyModel5h.server.delete(results.first.key)
-    
+    f = MyModel5h.find(:first_name => 'c1', :last_name => 'l1', :user_id => 2)
+    f.should_not be_nil
+    f.delete
+    MyModel5h.find(:first_name => 'c1', :last_name => 'l1', :user_id => 2).should be_nil
     results = MyModel5h.all(:first_name => 'c1', :last_name => 'l1')
     results.length.should == 1
-    
+  end
+  
+  it "should garbage collect empty keys" do
+    results = MyModel5h.all(:first_name => 'c1', :last_name => 'l1')
+    results.length.should == 1
     MyModel5h.server.get(MyModel5h.collection_key(:first_name => 'c1', :last_name => 'l1')).length.should == 1
+    
+    
+    MyModel5h.delete(:first_name => 'c1', :last_name => 'l1', :user_id => 3)
+    
+    results = MyModel5h.all(:first_name => 'c1', :last_name => 'l1')
+    results.length.should == 0
+    
+    MyModel5h.server.get(MyModel5h.collection_key(:first_name => 'c1', :last_name => 'l1')).length.should == 0
   end
   
   it_should_behave_like "all MyModel cache2base models"
