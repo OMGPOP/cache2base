@@ -149,6 +149,14 @@ module Cache2base
       @server
     end
     
+    def server=(other)
+      @server = other
+    end
+    
+    def set_server(other)
+      @server = other
+    end
+    
     def field_accessor(*fields)
       fields.each do |field|
         class_eval "def #{field}; @values[:\"#{field}\"]; end"

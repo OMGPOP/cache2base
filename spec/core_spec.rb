@@ -51,9 +51,13 @@ end
 #  end
 #end
  
+ 
+C1 = Dalli::Client.new('localhost:11222')
+C2 = Dalli::Client.new('localhost:11222')
+
 describe "Initialization" do
   it "should set the correct datastore" do
-    Cache2base.init!(:server => Dalli::Client.new('localhost:11222'))
+    Cache2base.init!(:server => C1)
     
     Cache2base.server.should_not be_nil
   end
@@ -480,4 +484,98 @@ describe "A Cache2base model with a 2 field collection and a 1 field collection,
   end
   
   it_should_behave_like "all MyModel cache2base models"
+end
+
+describe "multi server test" do
+  before(:all) do
+    class MyModelMulti1
+      include Cache2base
+      set_basename 'mmm1'
+      set_ttl 3 # 3 seconds (so they expire after testing)
+      set_fields :user_id, :first_name, :last_name
+
+      set_primary_key :user_id
+      member_of_collection [:first_name, :last_name], :hash_key => true
+      member_of_collection :last_name, :hash_key => true
+    end
+    
+    class MyModelMulti2
+      include Cache2base
+      set_basename 'mmm1'
+      set_ttl 3 # 3 seconds (so they expire after testing)
+      set_fields :user_id, :first_name, :last_name
+
+      set_primary_key :user_id
+      member_of_collection [:first_name, :last_name], :hash_key => true
+      member_of_collection :last_name, :hash_key => true
+    end
+    
+    MyModelMulti2.server = C2
+  end
+  
+  it "should hit the correct server" do
+    C1.should_receive(:get).once
+    C2.should_not_receive(:get)
+    MyModelMulti1.find(:user_id => 1)
+  end
+  
+  it "should hit the correct server" do
+    C2.should_receive(:get).once
+    C1.should_not_receive(:get)
+    MyModelMulti2.find(:user_id => 1)
+  end
+  
+  it "should hit the correct server" do
+    C1.should_receive(:get).once
+    C2.should_receive(:get).once
+    MyModelMulti1.find(:user_id => 1)
+    MyModelMulti2.find(:user_id => 1)
+  end
+end
+
+describe "multi server test" do
+  before(:all) do
+    class MyModelMulti3
+      include Cache2base
+      set_basename 'mmm3'
+      set_ttl 3 # 3 seconds (so they expire after testing)
+      set_fields :user_id, :first_name, :last_name
+
+      set_primary_key :user_id
+      member_of_collection [:first_name, :last_name], :hash_key => true
+      member_of_collection :last_name, :hash_key => true
+    end
+    
+    class MyModelMulti4
+      include Cache2base
+      set_basename 'mmm4'
+      set_ttl 3 # 3 seconds (so they expire after testing)
+      set_fields :user_id, :first_name, :last_name
+      set_server C2
+
+      set_primary_key :user_id
+      member_of_collection [:first_name, :last_name], :hash_key => true
+      member_of_collection :last_name, :hash_key => true
+    end
+    
+  end
+  
+  it "should hit the correct server" do
+    C1.should_receive(:get).once
+    C2.should_not_receive(:get)
+    MyModelMulti3.find(:user_id => 1)
+  end
+  
+  it "should hit the correct server" do
+    C2.should_receive(:get).once
+    C1.should_not_receive(:get)
+    MyModelMulti4.find(:user_id => 1)
+  end
+  
+  it "should hit the correct server" do
+    C1.should_receive(:get).once
+    C2.should_receive(:get).once
+    MyModelMulti3.find(:user_id => 1)
+    MyModelMulti4.find(:user_id => 1)
+  end
 end
