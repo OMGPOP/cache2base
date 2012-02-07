@@ -4,7 +4,7 @@ module Cache2base
     klass.class_eval "@ttl ||= 0"
     klass.class_eval "@collections ||= []"
     klass.class_eval "@server ||= Cache2base.server"
-    klass.class_eval "attr_accessor :values"
+    klass.class_eval "attr_accessor :values, :new_instance"
     klass.extend(ClassMethods)
   end
   
@@ -44,6 +44,14 @@ module Cache2base
     result = @new_instance ? server.add(self.key, self.marshal, self.class.ttl) : server.set(self.key, self.marshal, self.class.ttl)
     raise 'Duplicate Primary Key' unless result
     @new_instance = false
+    self
+  end
+  
+  # Side effect: Will update all values to latest in current model
+  def update(params = {}, &block)
+    raise "Invalid Primary Key" unless valid_primary_key?
+    updated = self.class.update(self.values, params, &block)
+    self.values = updated.values if updated
     self
   end
   
@@ -251,6 +259,34 @@ module Cache2base
       o = server.get(key(fields))
       return nil unless o
       self.from_hash(Marshal.load(o))
+    end
+    
+    def update(fields, params = {}, &block)
+      tries = 0
+      saved = false
+      existing = false
+      
+      while !saved && tries < 3
+        saved = server.cas(key(fields), self.ttl) do |existing|
+          existing = existing ? self.from_hash(Marshal.load(existing)) : self.new
+          if block_given?
+            yield(existing)
+          else
+            params.each_pair do |field, value|
+              existing.send(:"#{field}=", value)
+              existing
+            end
+          end
+          
+          raise "Cannot update primary key" unless key(fields) == existing.key
+          existing.marshal
+        end
+        tries += 1
+      end
+      raise "Could not resolve lock" if !saved
+      existing.add_to_collections
+      existing.new_instance = false
+      existing
     end
     
     def delete(fields, params = {})

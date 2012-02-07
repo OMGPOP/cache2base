@@ -31,6 +31,72 @@ shared_examples_for "all MyModel cache2base models" do
     nm.last_name.should == m.last_name
     nm.user_id.should == m.user_id
   end
+  
+  it "should update and then find" do
+    default_params = {:user_id => 234, :first_name => 'crash234', :last_name => '2burn234', :other => 'a', :other2 => 'b'}
+    
+    m = @model.new(default_params)
+    m.save
+    
+    nm = @model.find(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}])
+    
+    nm.should_not be_nil
+    nm.first_name.should == m.first_name
+    nm.last_name.should == m.last_name
+    nm.user_id.should == m.user_id
+    nm.other.should == m.other
+    nm.other2.should == m.other2
+    
+    @model.update(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}], :other => 'a2')
+    
+    nm = @model.find(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}])
+    
+    nm.should_not be_nil
+    nm.first_name.should == m.first_name
+    nm.last_name.should == m.last_name
+    nm.user_id.should == m.user_id
+    nm.other.should == 'a2'
+    nm.other2.should == m.other2
+    
+    @model.update(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}]) do |i|
+      i.other2 = 'b2'
+    end
+    
+    nm = @model.find(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}])
+    
+    nm.should_not be_nil
+    nm.first_name.should == m.first_name
+    nm.last_name.should == m.last_name
+    nm.user_id.should == m.user_id
+    nm.other.should == 'a2'
+    nm.other2.should == 'b2'
+    
+    nm.update(:other => 'a3')
+    nm.other.should == 'a3'
+    
+    nm = @model.find(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}])
+    
+    nm.should_not be_nil
+    nm.first_name.should == m.first_name
+    nm.last_name.should == m.last_name
+    nm.user_id.should == m.user_id
+    nm.other.should == 'a3'
+    nm.other2.should == 'b2'
+    
+    nm.update do |i|
+      i.other2 = 'b3'
+    end
+    nm.other2.should == 'b3'
+    
+    nm = @model.find(Hash[@model.primary_key.collect {|v| [v, default_params[v]]}])
+    
+    nm.should_not be_nil
+    nm.first_name.should == m.first_name
+    nm.last_name.should == m.last_name
+    nm.user_id.should == m.user_id
+    nm.other.should == 'a3'
+    nm.other2.should == 'b3'
+  end
 end
 
 #shared_examples_for "all MyModel collection models" do
@@ -69,7 +135,7 @@ describe "A Cache2base model with a 1 field primary key" do
       include Cache2base
       set_basename 'mm'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
     end
@@ -96,7 +162,7 @@ describe "A Cache2base model with a 1 field primary key, hashed" do
       include Cache2base
       set_basename 'mm1h'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id, :hash_key => true
     end
@@ -123,7 +189,7 @@ describe "A Cache2base model with a 2 field primary key" do
       include Cache2base
       set_basename 'mm2'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key [:user_id, :first_name]
     end
@@ -150,7 +216,7 @@ describe "A Cache2base model with a 2 field primary key, hashed" do
       include Cache2base
       set_basename 'mm2h'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key [:user_id, :first_name], :hash_key => true
     end
@@ -177,7 +243,7 @@ describe "A Cache2base model with a 1 field collection" do
       include Cache2base
       set_basename 'mm3'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection :first_name
@@ -220,7 +286,7 @@ describe "A Cache2base model with a 1 field collection, hashed" do
       include Cache2base
       set_basename 'mm3h'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection :first_name, :hash_key => true, :max => 5
@@ -285,7 +351,7 @@ describe "A Cache2base model with a 2 field collection" do
       include Cache2base
       set_basename 'mm4'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection [:first_name, :last_name]
@@ -328,7 +394,7 @@ describe "A Cache2base model with a 2 field collection, hashed" do
       include Cache2base
       set_basename 'mm4h'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection [:first_name, :last_name], :hash_key => true
@@ -371,7 +437,7 @@ describe "A Cache2base model with a 2 field collection and a 1 field collection"
       include Cache2base
       set_basename 'mm5'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection [:first_name, :last_name]
@@ -419,7 +485,7 @@ describe "A Cache2base model with a 2 field collection and a 1 field collection,
       include Cache2base
       set_basename 'mm5h'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection [:first_name, :last_name], :hash_key => true
@@ -492,7 +558,7 @@ describe "multi server test" do
       include Cache2base
       set_basename 'mmm1'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection [:first_name, :last_name], :hash_key => true
@@ -539,7 +605,7 @@ describe "multi server test" do
       include Cache2base
       set_basename 'mmm3'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
 
       set_primary_key :user_id
       member_of_collection [:first_name, :last_name], :hash_key => true
@@ -550,7 +616,7 @@ describe "multi server test" do
       include Cache2base
       set_basename 'mmm4'
       set_ttl 3 # 3 seconds (so they expire after testing)
-      set_fields :user_id, :first_name, :last_name
+      set_fields :user_id, :first_name, :last_name, :other, :other2
       set_server C2
 
       set_primary_key :user_id

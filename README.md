@@ -31,6 +31,10 @@ And use that model:
 	
 	m2 = MyModel4.create(:last_name => "lname2", :first_name => 'fname', :user_id => 6) # auto create (.new, .save shortcut)
 	
+	m2 = MyModel4.find(:user_id => '6', :first_name => 'fname') # gets the object
+	
+	m2.update(:last_name => 'new last') # updates atomically
+	
 	fnames = MyModel4.all(:first_name => "fname") # returns array of model instances that share the same first name
 	                                              #=> [#<MyModel4:0x10133cd98 @last_name="lname", @new_instance=false, @first_name="fname", @user_id=5>, 
 	                                              #=>  #<MyModel4:0x10133c4d8 @last_name="lname2", @new_instance=false, @first_name="fname", @user_id=6>]
@@ -38,6 +42,13 @@ And use that model:
 	m.delete # delete the first one
 	
 	MyModel4.all(:first_name => "fname") #=> [#<MyModel4:0x101264560 @last_name="lname2", @new_instance=false, @first_name="fname", @user_id=6>]
+	
+	# Atomic updates
+	MyModel4.update(:user_id => 'lname2', :first_name => 'fname') do |instance|
+	  instance.last_name = "new last name"
+	end
+	
+	
 
 Thanks
 ------------
